@@ -8,6 +8,10 @@
 import sys
 version = (3, 0)
 cur_version = sys.version_info
+
+import hashlib
+import requests
+
 if cur_version >= version:  # If the Current Version of Python is 3.0 or above
     import urllib.request
     from urllib.request import Request, urlopen
@@ -532,11 +536,32 @@ class googleimagesdownload:
 
     # Download Images
     def download_image(self,image_url,image_format,main_directory,dir_name,count,print_urls,socket_timeout,prefix,print_size):
+        user_agent = "Mozilla/5.0 (X11; Linux i686) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.27 Safari/537.17"
+        try:
+          res = requests.get(
+            image_url,
+            verify=False,
+            timeout=5.0,
+            headers={'User-Agent': user_agent},
+            proxies={'http': 'socks5://127.0.0.1:9050', 'https': 'socks5://127.0.0.1:9050'}
+          )
+        except requests.exceptions.RequestException:
+            return 'fail', image_url, ''
+        if res.status_code!=200:
+            return 'fail', 'got status {} for {}'.format(res.status_code, image_url), ''
+        b = res.content
+        md5hex = hashlib.md5(b).hexdigest()
+        fn=os.path.join(main_directory, dir_name, md5hex+'.jpg')
+        try: os.makedirs(os.path.dirname(fn))
+        except OSError: pass
+        with open(fn, 'wb') as f:
+            f.write(b)
+        return 'success', '{} => {}'.format(image_url, fn), fn
         if print_urls:
             print("Image URL: " + image_url)
         try:
             req = Request(image_url, headers={
-                "User-Agent": "Mozilla/5.0 (X11; Linux i686) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.27 Safari/537.17"})
+                })
             try:
                 # timeout time to download an image
                 if socket_timeout:
